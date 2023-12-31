@@ -1,0 +1,49 @@
+# comekamsdf
+# sdflkm
+{Head} # a;skdf
+1: 8mr (8, 8)
+2: sc, inc (12, 20)
+3: sc, inc (18, 38)
+4: sc, sc, inc (24, 62) # This is a comment
+5: sc (24, 86)
+6: sc (24, 110)
+7: sc, sc, dec (20, 130)
+
+# This is what a comment looks like
+
+8: sc, dec (15, 145)
+9: sc, dec
+10: sc
+
+{Body}
+1: 6mr (6, 6)
+2: inc (12, 18)
+3: [inc, sc]*6 (18, 36)
+4: [inc, 2sc]*6 (24, 60)
+5: [inc, 3sc]*6 (30, 90)
+6: [inc, 4sc]*6 (36, 126)
+7: [inc, 5sc]*6 (42, 168)
+8: 42sc (42, 210)
+9: 42sc (42, 252)
+10: [inc, 13sc]*3 (45, 297)
+11: 45sc (45, 342)
+12: 45sc (45, 387)
+13: 7sc, [inc, 14sc]*2, inc, 7sc (48, 435)
+14: 48sc (48, 483)
+15: 48sc (48, 531)
+16: [inc, 15sc]*3 (51, 582)
+17: 51sc (51, 633)
+
+{feet}
+1: 9mr (9)
+2: inc (18)
+3: 2sc, inc (24)
+4: 2sc, inc (32)
+5: 32sc (32)
+6: 32sc (32)
+7: 32sc (32)
+8: 32sc (32)
+9: 32sc (32)
+10: 2sc, dec, sc (24)
+11: 2sc, dec (16)
+12: sc, dec (8)
