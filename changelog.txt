@@ -1,2 +1,0 @@
-# v1.0.0
-- it's not pretty, but it works

@@ -1,137 +1,254 @@
-def expand_instruction(instruct):
-  while -1 != instruct.find('['):
-    start = instruct.find('[')
-    end = instruct.find(']')
-    timesStart = instruct.find('*')
-    timesEnd = instruct[timesStart:].find(',')
+class crocFile:
+  def __init__(self, sourceFile:str):
+    try:
+      self.file = open(sourceFile, "r") # open file supplied
+    except Exception as err:
+      self.file = ""
+      print(f"Unexpected {err=}, {type(err)=}")
 
-    if -1 == timesEnd:
-      times = instruct[timesStart+1:]
-      rest = ""
+    self.line       = ""  # current file line
+    self.lineNumber = 0   # current file line number
+    self.round      = 1   # stitches on current round
+    self.total      = 0   # stitches in total
+    self.buffer     = ""  # output buffer
+
+  # check if the source file is open
+  def is_open(self):
+    if not self.file: return False
+    else:             return True
+
+  # read next file line, store it, and inc line number
+  def read(self):
+    self.line = self.file.readline()
+    if not self.line:
+      return False
+    self.lineNumber += 1
+    return True
+
+  # check if the current line is a header, instruction, or comments
+  def is_code(self):
+    if '{' == self.line[0]:      return 2
+    elif self.line[0].isalnum(): return 1
+    else:                        return 0
+
+  # add a string or array to the buffer
+  def append(self, strings, *, prepend:str = "", postpend:str = "", interpend:str = ""):
+    if list == type(strings):
+      self.buffer += prepend
+      length       = len(strings)
+
+      for i in range(length):
+        self.buffer += str(strings[i])
+        if i < length-1:
+          self.buffer += interpend
+      self.buffer += postpend
+
+    elif strings:
+      self.buffer += prepend + strings + postpend
+
+  # close file
+  def close(self):
+    if not self.file.closed:
+      self.file.close()
+
+  def __del__(self):
+    if self.file:
+      if not self.file.closed:
+        self.file.close()
+
+# extract the round number, instruction, and comment
+def partition(line:str):
+  rnd         = ""
+  instruction = ""
+  comment     = ""
+  temp        = line.lstrip().rstrip()
+
+  i = temp.find('#')
+  if -1 != i:
+    temp    = [temp[:i], temp[i:]]
+    comment = temp[1]
+    temp    = temp[0].replace(' ', '')
+  else:
+    temp = temp.replace(' ', '')
+
+  i    = temp.find(':')
+  temp = [temp[:i], temp[i+1:]]
+  rnd  = temp[0]
+
+  i = temp[1].find('(')
+  if -1 != i:
+    instruction = temp[1][:i]
+  else:
+    instruction = temp[1]
+
+  return rnd, instruction, comment
+
+# make the instruction simpler with substitution
+def substitute(instruction):
+  replace = {
+    "ch"  :"A",
+    "slst":"B",
+    "sc"  :"C",
+    "hdc" :"D",
+    "dc"  :"E",
+    "trc" :"F",
+    "tr"  :"F",
+    "inc" :"G",
+    "dec" :"H",
+    "turn":"I",
+    "join":"J",
+    "rep" :"K",
+    "mr"  :"L"
+  }
+  for old, new in replace.items():
+    instruction = instruction.replace(old, new)
+
+  return instruction
+
+# multiply in the scale to the pattern
+def expand(instruction):
+  bracketStart = instruction.find('[')
+  while -1 != bracketStart:
+    bracketEnd = instruction.find(']')
+    scaleEnd   = instruction[bracketEnd+1:].find(',')
+
+    if -1 == bracketEnd:
+      return 0, "Found an opening bracket.... but no closing one. Put one"
+    elif '*' != instruction[bracketEnd+1]:
+      return 0, "Put an asterisk after the closing bracket"
+
+    bracket = instruction[bracketStart+1:bracketEnd].split(',')
+    if not bracket:
+      return 0, "If you put brackets, make sure there's something inside them mate"
+
+    if -1 == scaleEnd:
+      scale     = instruction[bracketEnd+2:]
+      remainder = ""
     else:
-      times = instruct[timesStart+1:timesStart+timesEnd]
-      rest = instruct[timesStart+timesEnd:]
-    
-    copy = (instruct[start+1:end]+",")*int(times)
-    instruct = instruct[0:start] + copy[0:-1] + rest
+      scale     = instruction[bracketEnd+2:bracketEnd+scaleEnd+1]
+      remainder = instruction[bracketEnd+scaleEnd+1:]
 
-  return instruct
+    if not scale:
+      return 0, "You can't multiply by nothing. I need a number"
+    if not scale.isnumeric():
+      return 0, "The *number* after the '*' needs to be a *number*. That's where the word **number** comes in"
 
-def read_instruction(instruct, totalRound, totalOverall, lineNumber):
-  instruct = instruct.replace("tr", "trc")
+    if 0 != bracketStart:
+      instruction = instruction[:bracketStart]
+    else:
+      instruction = ""
 
-  instruct = instruct.replace("ch", "A")
-  instruct = instruct.replace("slst", "B")
-  instruct = instruct.replace("sc", "C")
-  instruct = instruct.replace("hdc", "D")
-  instruct = instruct.replace("dc", "E")
-  instruct = instruct.replace("trc", "F")
-  instruct = instruct.replace("inc", "G")
-  instruct = instruct.replace("dec", "H")
-  instruct = instruct.replace("turn", "I")
-  instruct = instruct.replace("join", "J")
-  instruct = instruct.replace("rep", "K")
-  instruct = instruct.replace("mr", "L")
+    firstTime = True
+    for i in bracket:
+      if 1 != len(i):
+        coefficient = i[:-1]
+      else:
+        coefficient = "1"
+      if not coefficient.isnumeric():
+        return 0, "The coefficient is not a number"
+      
+      if firstTime:
+        instruction += str(int(coefficient)*int(scale)) + i[-1]
+        firstTime    = False
+      else:
+        instruction += "," + str(int(coefficient)*int(scale)) + i[-1]
+    instruction += remainder
 
-  instruct = expand_instruction(instruct)
-  if -1 != instruct.find(']'):
-    print("Spare ']' found at line %s" % lineNumber)
-    return -1, -1
+    bracketStart = instruction.find('[')
 
-  instruct = instruct[::-1]
-  bleh = instruct
-  instruct = instruct.split(',')
-  instructSize = len(instruct)
-  totalRoundOld = totalRound
-  i = 0
-  k = 0
-  while i < totalRoundOld:
-    j = instruct[k%instructSize]
-    match j[0]:
-      case "L":
-        totalRound += int(j[:0:-1])-1
-      case "G":
-        try:
-          totalRound += int(j[:0:-1])-1
-        except:
-          totalRound += 1
-      case "H":
-        try:
-          totalRound -= int(j[:0:-1])-1
-        except:
-          totalRound -= 1
-      case "C":
-        try:
-          i += int(j[:0:-1])-1
-        except:
-          pass
+  if ']' in instruction:
+    return 0, "Spare closing bracket found. Leave no survivors"
+
+  return instruction
+
+# counts the stitches in a round and in total
+def count_stitches(instruction, rnd, total):
+  instruction = instruction.split(',')
+  width       = 0
+  increase    = 0
+
+  for i in instruction:
+    if 1 == len(i):
+      i = "1" + i
+    if not i[:-1].isnumeric():
+          return 0, "Coefficient needs to be a number please!"
+
+    match i[-1]:
+      case 'G':
+        increase += int(i[:-1])
+      case 'H':
+        increase -= int(i[:-1])
+      case 'L':
+        return [int(i[:-1]), int(i[:-1])]
       case _:
         pass
-    i += 1
-    k += 1
 
-  # print("instruct " + bleh +" total round " + str(totalRound) + " total total " + str(totalOverall))
+    width += int(i[:-1])
 
-  return totalRound, totalOverall
+  if width > rnd:
+    return 0, "Too many stitches in this round. It can't matchup to the previous round"
 
-def croc_count(inFile, outFile):
-  buffer = ""               #entire output file
-  lineNumber = 0            #current file line number
-  totalRound = 1            #crochet number for this round
-  totalOverall = 0          #total crochet number
-  lineArray = ["", "", ""]  #parsed line [<round number>,<instruction>,<comment>]
+  k       = width
+  repeats = 1
+  while (rnd-k) > 0:
+    k       += width
+    repeats += 1
 
-  for lineRaw in inFile:
-    lineStripped = lineRaw.lstrip(' ').rstrip(' ')
-    lineNumber += 1
-    
-    if lineStripped[0] == '{': #if a new header started
-      temp = lineStripped.split('#')[0].find('}')
-      if -1 == temp:           #if there is no closing bracket, raise error
-        print("Missing closing bracket at line %s" % lineNumber)
+  if (k-rnd) > 0:
+    return 0, "Needs more crochets to complete, suggestion: {0}sc\nInstruction repeated: {1} times".format(rnd-(k-width), repeats-1)
+
+  totals = [(width+increase)*repeats, total+(width+increase)*repeats]
+  return totals
+
+def croc_count(pattern, outFile):
+
+  while pattern.read():
+    path = pattern.is_code()
+
+    if 2 == path:
+      pattern.round = 0
+      pattern.total = 0
+      pattern.append(pattern.line)
+      # <NOTE> this is where we can do something with the header
+
+    elif 1 == path:
+      rnd, instructionRaw, comment = partition(pattern.line)
+
+      instruction = substitute(instructionRaw)
+      instruction = expand(instruction)
+      if not instruction[0]:
+        print("Error at line {0}\nInstruction was: {1}\nError: {2}".format(pattern.lineNumber, pattern.line.rstrip(), instruction[1]))
+        outFile.write("Error at line {0}\nInstruction was: {1}\nError: {2}".format(pattern.lineNumber, pattern.line.rstrip(), instruction[1]))
         break
 
-      totalRound = 1   #reset round total
-      totalOverall = 0 #reset overall total
-      # <NOTE> This is where we can do something with the block name lineStripped[1:temp]
-      buffer += lineRaw
-
-    elif lineStripped[0].isalnum():
-      temp = lineStripped.find('#')
-      if -1 != temp:
-        lineArray[2] = " " + lineStripped[temp:]
-        lineStripped = lineStripped[0:temp].rstrip(' ')
-      else:
-        lineArray[2] = "\n"
-
-      lineStripped = lineStripped.replace(' ', '')
-      posColon = lineStripped.find(':')
-      if -1 == posColon:
-        print("Colon not found after round number at line %s" % lineNumber)
+      totals = count_stitches(instruction, pattern.round, pattern.total)
+      if not totals[0]:
+        print("Error at line {0}\nInstruction was: {1}\nError: {2}".format(pattern.lineNumber, pattern.line.rstrip(), totals[1]))
+        outFile.write("Error at line {0}\nInstruction was: {1}\nError: {2}".format(pattern.lineNumber, pattern.line.rstrip(), totals[1]))
         break
-      lineArray[0] = lineStripped[0:posColon]
-      if not lineArray[0].isalnum():
-        print("Round number is not alpha numeric at line %s" % lineNumber)
-        break
+      pattern.round, pattern.total = totals
 
-      lineArray[1] = lineStripped.split('(')[0][posColon+1:].rstrip()
-
-      totalRound, totalOverall = read_instruction(lineArray[1], totalRound, totalOverall, lineNumber)
-      if -1 == totalRound:
-        break
-
-      totalOverall += totalRound
-
-      buffer += lineArray[0] +": "+ lineArray[1].replace(",", ", ") +" ("+ str(totalRound) +", "+ str(totalOverall) +")"+ lineArray[2]
-
-    else:               #it's either a comment or blank line
-      buffer += lineRaw #just append it
+      pattern.append(rnd, postpend = ": ")
+      pattern.append(instructionRaw.split(','), interpend = ', ')
+      pattern.append(totals, prepend = " (", interpend = ", ", postpend = ")")
+      pattern.append(comment, prepend = " ")
+      pattern.append("\n")
+    else:
+      pattern.append(pattern.line)
+      continue
 
   else:
-    outFile.write(buffer)
+    print("All passed. Writing to file!")
+    outFile.write(pattern.buffer)
 
-ptn = open("raw.croc", 'r')
-file = open("pattern.croc", 'w')
-croc_count(ptn, file)
-ptn.close()
-file.close()
+if "__main__" == __name__:
+  file = input("Drag and drop your .croc in here....")
+  pattern = crocFile(file)
+  if not pattern.is_open():
+    print("Can't find the file to open")
+    quit()
+  
+  patternOut = open("pattern.croc", 'w')
+
+  croc_count(pattern, patternOut)
+  patternOut.close()
