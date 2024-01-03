@@ -12,8 +12,13 @@
 - more comments in source code!
 - can now drag and drop an input file in
 
+# v1.2.0
+- round number initialized to 1 instead of 0 was a bug
+- can now have settings in the croc file
+
 # TODO
 - allow use of unknown X and solve
 - don't work in strings, change to ints or matrixes
 - get rid of repeated error checks
 - add the number of repeats to a pattern to the output file
+- get useSuggestions working

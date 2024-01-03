@@ -6,11 +6,13 @@ class crocFile:
       self.file = ""
       print(f"Unexpected {err=}, {type(err)=}")
 
-    self.line       = ""  # current file line
-    self.lineNumber = 0   # current file line number
-    self.round      = 1   # stitches on current round
-    self.total      = 0   # stitches in total
-    self.buffer     = ""  # output buffer
+    self.line           = ""              # current file line
+    self.lineNumber     = 0               # current file line number
+    self.round          = 0               # stitches on current round
+    self.total          = 0               # stitches in total
+    self.buffer         = ""              # output buffer
+    self.output         = "./output.croc" # output file location
+    self.useSuggestions = False           # use all suggestions WIP
 
   # check if the source file is open
   def is_open(self):
@@ -209,7 +211,6 @@ def croc_count(pattern, outFile):
       pattern.round = 0
       pattern.total = 0
       pattern.append(pattern.line)
-      # <NOTE> this is where we can do something with the header
 
     elif 1 == path:
       rnd, instructionRaw, comment = partition(pattern.line)
@@ -241,6 +242,29 @@ def croc_count(pattern, outFile):
     print("All passed. Writing to file!")
     outFile.write(pattern.buffer)
 
+def get_settings(pattern):
+  while pattern.read():
+    path = pattern.is_code()
+
+    if 2 == path:
+      pattern.append(pattern.line)
+      break
+    elif 1 == path:
+      pattern.append(pattern.line)
+      temp = pattern.line.split('=')
+      match temp[0]:
+        case "output":
+          pattern.output = temp[1][:-1]
+        case "useSuggestions":
+          if "True" == temp[1]:
+            pattern.useSuggestions = True
+          else:
+            pattern.useSuggestions = False
+        case _:
+          pass
+    else:
+      pattern.append(pattern.line)
+
 if "__main__" == __name__:
   file = input("Drag and drop your .croc in here....")
   pattern = crocFile(file)
@@ -248,7 +272,26 @@ if "__main__" == __name__:
     print("Can't find the file to open")
     quit()
   
-  patternOut = open("pattern.croc", 'w')
+  while pattern.read():
+    path = pattern.is_code()
+
+    if 2 == path:
+      if "{settings}" == pattern.line[0:10]:
+        pattern.append(pattern.line)
+        get_settings(pattern)
+        break
+      else:
+        pattern.round = 0
+        pattern.total = 0
+        pattern.append(pattern.line)
+        break
+    elif 0 == path:
+      pattern.append(pattern.line)
+    else:
+      break
+
+
+  patternOut = open(pattern.output, 'w')
 
   croc_count(pattern, patternOut)
   patternOut.close()

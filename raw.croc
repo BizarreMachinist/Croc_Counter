@@ -1,3 +1,7 @@
+{settings}
+output=E:/Codes_Attic/croc_counter/pattern.croc
+useSuggestions=True
+
 # comekamsdf
 # sdflkm
 {Head} # The program will ignore anythin in '()' aswell
@@ -8,7 +12,6 @@
 5: sc
 6: sc
 7: sc, sc, dec
-8: sc
 
 # This is what a comment looks like
 
